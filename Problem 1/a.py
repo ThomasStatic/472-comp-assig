@@ -1,3 +1,5 @@
+import random
+
 Xcal: list[str] = ['B', 'G']
 Ucal: list[int] = [0, 1]
 beta: float = 0.5
@@ -73,6 +75,31 @@ def compute_future_value(x0: str, u0: int, v: dict[str, float]) -> float:
         next_state_value += kernel(x0, x1, u0)*v[x1]
     return next_state_value
 
+def q_learning(eta: float = 0.7) -> tuple[dict[tuple[str, int], float], dict[str, int]]:
+    Q_table: dict[tuple[str, int], float] = {('G', 0): 0, ('G', 1): 0, ('B', 0): 0, ('B', 1): 0}
+    visits: dict[tuple[str, int], int] = {('G', 0): 0, ('G', 1): 0, ('B', 0): 0, ('B', 1): 0}
+    state: str = 'G'
+    for t in range(10000):
+        epsilon: float = 100/(100+t)
+        random_num: float = random.random()
+
+        # I apologize, this is kind of gross code... but the idea is to pick a 
+        # random action with probability epsilon, and the best action with probability 1-epsilon
+        action: int = random.choice(Ucal) if random_num < epsilon else 0 if Q_table[(state, 0)] < Q_table[(state, 1)] else 1
+
+        # Here I am sampling the next state using the kernel... which I think is what the problem wants me to do
+        # considering there is no dataset, but I am not entirely sure...
+        next_state: str = 'G' if random.random() < kernel(state, 'G', action) else 'B'
+
+        visits[(state, action)] += 1
+        alpha: float = 1/visits[(state, action)]
+        Q_table[(state, action)] += alpha * (calc_cost(state, action, eta) + beta * min(Q_table[(next_state, 0)], Q_table[(next_state, 1)]) - Q_table[(state, action)])
+        state = next_state
+    policy: dict[str, int] = {}
+    for state in Xcal:
+        policy[state] = 0 if Q_table[(state, 0)] < Q_table[(state, 1)] else 1
+
+    return Q_table, policy
 
 if __name__ == "__main__":
     for eta in etas:
@@ -87,3 +114,11 @@ if __name__ == "__main__":
         v, policy = policy_iteration(eta)
         print(f"Value Function: {v}")
         print(f"Policy: {policy}")
+
+        print("\nQ-Learning")
+        print(f"eta: {eta}")
+        q_table, policy = q_learning(eta)
+        print(f"Q-Table: {q_table}")
+        print(f"Policy: {policy}")
+
+    q_learning()
